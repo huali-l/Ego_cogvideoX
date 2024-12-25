@@ -10,3 +10,5 @@ output*
 test*
 venv
 5B_ckpt
+wandb
+cogvideox-lora
