@@ -11,13 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import argparse
 import logging
 import math
 import os
 import sys
-sys.path.append('/home/guest/share/lcy/CogVideo-main/finetune/train_cogvideox_lora.py')
+sys.path.append('/home/guest/share/lcy/code/CogVideo-main/finetune/train_cogvideox_lora.py')
 import shutil
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
@@ -47,7 +46,7 @@ from diffusers.utils import check_min_version, convert_unet_state_dict_to_peft, 
 from diffusers.utils.hub_utils import load_or_create_model_card, populate_model_card
 from diffusers.utils.torch_utils import is_compiled_module
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,5,6,7'
 
 if is_wandb_available():
     import wandb
@@ -65,7 +64,7 @@ def get_args():
     parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str,
-        default='/home/guest/share/lcy/CogVideo-main/5B_ckpt/CogVideoX1.5-5B',
+        default='/home/guest/share/lcy/code/CogVideo-main/5B_ckpt/CogVideoX1.5-5B',
         help="Path to pretrained model or model identifier from huggingface.co/models.",
     )
     parser.add_argument(
@@ -108,7 +107,7 @@ def get_args():
     parser.add_argument(
         "--instance_data_root",
         type=str,
-        default='/home/guest/share/lcy/CogVideo-main/data',
+        default='/home/guest/share/lcy/dataset/epic_small',
         help=("A folder containing the training data."),
     )
     parser.add_argument(
@@ -139,7 +138,7 @@ def get_args():
     parser.add_argument(
         "--validation_prompt",
         type=str,
-        default="",
+        default="The video captures a cozy kitchen, with the camera focused on a man deeply engrossed in kneading dough. He sprinkles a dusting of flour across the chopping board, his hands skillfully working the dough back and forth, as if each motion is a quiet conversation with the dough itself. Next to him sits a red bowl of water, its surface shimmering under the light, while a yellow bowl filled with white flour rests nearby, some powder spilling over the edges as if to tell the story of their ongoing interaction. Around him, the kitchen is filled with an array of utensils—shiny knives catching the light, wooden spoons lying quietly, all of them subtly adding to the rich atmosphere of the kitchen. The camera carefully captures each moment, as the rhythmic kneading flows steadily, creating a sense of warmth and comfort in the space.",
         help="One or more prompt(s) that is used during validation to verify that the model is learning. Multiple validation prompts should be separated by the '--validation_prompt_seperator' string.",
     )
     parser.add_argument(
@@ -157,7 +156,7 @@ def get_args():
     parser.add_argument(
         "--validation_epochs",
         type=int,
-        default=1,
+        default=5,
         help=(
             "Run validation every X epochs. Validation consists of running the prompt `args.validation_prompt` multiple times: `args.num_validation_videos`."
         ),
@@ -240,9 +239,9 @@ def get_args():
         help="whether to randomly flip videos horizontally",
     )
     parser.add_argument(
-        "--train_batch_size", type=int, default=1, help="Batch size (per device) for the training dataloader."
+        "--train_batch_size", type=int, default=4, help="Batch size (per device) for the training dataloader."
     )
-    parser.add_argument("--num_train_epochs", type=int, default=10)
+    parser.add_argument("--num_train_epochs", type=int, default=100)
     parser.add_argument(
         "--max_train_steps",
         type=int,
@@ -252,7 +251,7 @@ def get_args():
     parser.add_argument(
         "--checkpointing_steps",
         type=int,
-        default=5,
+        default=100,
         help=(
             "Save a checkpoint of the training state every X updates. These checkpoints can be used both as final"
             " checkpoints in case they are better than the last checkpoint, and are also suitable for resuming"
@@ -1344,6 +1343,13 @@ def main(args):
 
             with accelerator.accumulate(models_to_accumulate):
                 model_input = batch["videos"].permute(0, 2, 1, 3, 4).to(dtype=weight_dtype)  # [B, F, C, H, W]
+                batch_size, num_frames, num_channels, height, width = model_input.shape
+                ####
+                p_t = model_config['patch_size_t']
+                if p_t is not None and num_frames % p_t != 0:
+                    additional_frames = p_t - num_frames % p_t
+                    zero_padding = torch.zeros(batch_size, additional_frames, num_channels, height, width, device=model_input.device)
+                    model_input = torch.cat([model_input, zero_padding], dim=1)  # 在维度
                 prompts = batch["prompts"]
 
                 # encode prompts
@@ -1487,6 +1493,8 @@ def main(args):
                         pipeline_args=pipeline_args,
                         epoch=epoch,
                     )
+                    save_p = os.path.join('cogvideox-lora', f'output{epoch}.mp4')
+                    export_to_video(validation_outputs[0], save_p, fps=30)
 
     # Save the lora layers
     accelerator.wait_for_everyone()

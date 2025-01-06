@@ -16,7 +16,8 @@ $ python cli_demo.py --prompt "A girl riding a bike." --model_path THUDM/CogVide
 
 Additional options are available to specify the model path, guidance scale, number of inference steps, video generation type, and output paths.
 """
-
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '7'
 import logging
 import argparse
 from typing import Literal, Optional
@@ -191,14 +192,14 @@ if __name__ == "__main__":
         help="The path of the image to be used as the background of the video",
     )
     parser.add_argument(
-        "--model_path", type=str, default="/home/guest/share/lcy/CogVideo-main/5B_ckpt/CogVideoX1.5-5B", help="Path of the pre-trained model use"
+        "--model_path", type=str, default="/home/guest/share/lcy/code/CogVideo-main/5B_ckpt/CogVideoX1.5-5B", help="Path of the pre-trained model use"
     )
-    parser.add_argument("--lora_path", type=str, default=None, help="The path of the LoRA weights to be used")
+    parser.add_argument("--lora_path", type=str, default='/home/guest/share/lcy/code/CogVideo-main/cogvideox-lora/checkpoint-100', help="The path of the LoRA weights to be used")
     parser.add_argument("--lora_rank", type=int, default=128, help="The rank of the LoRA weights")
-    parser.add_argument("--output_path", type=str, default="./output.mp4", help="The path save generated video")
+    parser.add_argument("--output_path", type=str, default=".output/output.mp4", help="The path save generated video")
     parser.add_argument("--guidance_scale", type=float, default=6.0, help="The scale for classifier-free guidance")
     parser.add_argument("--num_inference_steps", type=int, default=50, help="Inference steps")
-    parser.add_argument("--num_frames", type=int, default=81, help="Number of steps for the inference process")
+    parser.add_argument("--num_frames", type=int, default=96, help="Number of steps for the inference process")
     parser.add_argument("--width", type=int, default=None, help="The width of the generated video")
     parser.add_argument("--height", type=int, default=None, help="The height of the generated video")
     parser.add_argument("--fps", type=int, default=16, help="The frames per second for the generated video")

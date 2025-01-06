@@ -12,3 +12,4 @@ venv
 5B_ckpt
 wandb
 cogvideox-lora
+check.py
